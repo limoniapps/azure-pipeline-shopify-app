@@ -1,0 +1,86 @@
+trigger:
+  branches:
+    include:
+      - dev/*
+
+variables:  
+  # The appClientId must be replaced by the Client ID of the Shopify App
+  - name: appClientId
+    value: ADD_CLIENT_ID_OF_SHOPIFY_APP_HERE
+  - name: rustVersion
+    value: stable
+
+stages:
+  - stage: DEPLOY_SHOPIFY_APP
+    displayName: Deploys an app to Shopify
+    jobs:
+      - job: Dependencies
+        displayName: Install dependencies
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          # The first steps are only required if you're using Rust-based function 
+          # Rust installation tasks are based on instructions outlined in https://github.com/crate-ci/azure-pipelines
+          # Install rust (Linux and macOS)
+          - script: |
+              set -e
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain $RUSTUP_TOOLCHAIN
+              echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
+            env:
+              RUSTUP_TOOLCHAIN: $(rustVersion)
+            displayName: "Install rust (*nix)"
+            condition: not(eq(variables['Agent.OS'], 'Windows_NT'))
+
+          # Install rust (Windows)
+          - script: |
+              curl -sSf -o rustup-init.exe https://win.rustup.rs
+              rustup-init.exe -y --profile minimal --default-toolchain %RUSTUP_TOOLCHAIN% --default-host x86_64-pc-windows-msvc
+              set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+              echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
+            env:
+              RUSTUP_TOOLCHAIN: $(rustVersion)
+            displayName: "Install rust (windows)"
+            condition: eq(variables['Agent.OS'], 'Windows_NT')
+
+          # Set correct toolchain for Rust
+          - bash: |
+              rustup default $RUSTUP_TOOLCHAIN
+              rustup update $RUSTUP_TOOLCHAIN
+            env:
+              RUSTUP_TOOLCHAIN: $(rustVersion)
+            displayName: "Set correct Rust version"
+
+          # Install cargo wasi for Rust
+          - script: |
+              cargo install cargo-wasi
+            displayName: "Install cargo-wasi"
+
+          # Confirm we have the expected versions for Rust
+          - script: |
+              rustc --version
+              cargo --version
+              rustup --version
+            displayName: Check installed rust version
+
+          # Node.js
+          - task: UseNode@1
+            inputs:
+              version: "18.x"
+            displayName: "Install Node.js"
+
+          # Install node dependencies
+          - script: |
+              npm install
+            displayName: "npm install"
+            workingDirectory: "src"
+
+          # Deploy app
+          # Note: adding "--source-control-url '$(Build.Repository.Uri)'" results in "Version couldn't be created." error due to "... is not a valid https URL for a git hosting service"
+          - script: |
+              npm run deploy -- --force --client-id '$(appClientId)' --version '$(Build.BuildNumber)' --message '$(Build.SourceVersionMessage)'
+            displayName: "npm run deploy"
+            workingDirectory: "src"
+            env:
+              # Token from the Partner Dashboard
+              # Note: this is stored as a secret variable in the Azure DevOps pipeline
+              SHOPIFY_CLI_PARTNERS_TOKEN: $(cliPartnerToken)
