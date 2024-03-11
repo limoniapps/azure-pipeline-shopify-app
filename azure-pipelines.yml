@@ -9,6 +9,33 @@ variables:
     value: ADD_CLIENT_ID_OF_SHOPIFY_APP_HERE
   - name: rustVersion
     value: stable
+  - name: srcDirectory
+    value: src
+  - name: pathToSrc
+    value: $(Build.SourcesDirectory)/$(srcDirectory)
+  - name: pathToExtensions
+    value: $(pathToSrc)/extensions
+  # Change this to package.json if you're not using package-lock.json
+  - name: npmModulesCacheKey
+    value: package-lock.json
+  # Change this version number if you need to break the npm modules cache
+  - name: npmModulesCacheVersion
+    value: v1
+  # Comma separated list of function folders
+  - name: functionFolders
+    value: dn_auto_order_discount,dn_auto_product_discount,dn_auto_shipping_discount
+  # Using Cargo.toml as a cache key ensures that the cache breaks when you change the version number
+  # Note the upper case C in Cargo.toml
+  - name: wasmCacheKey1
+    value: Cargo.toml
+  # Using cargo.lock as a cache key ensures that the cache breaks when a resolved dependency changes
+  # Note the lower case c in cargo.lock
+  # Change this to Cargo.toml if you're not using cargo.lock
+  - name: wasmCacheKey2
+    value: cargo.lock
+  # Change this version number if you need to break the wasm cache
+  - name: wasmCacheVersion
+    value: v2
 
 stages:
   - stage: DEPLOY_SHOPIFY_APP
@@ -68,18 +95,41 @@ stages:
               version: "18.x"
             displayName: "Install Node.js"
 
-          # Install node dependencies
+          # Cache node modules
+          # cf. https://learn.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#nodejsnpm
+          # cf. https://josh-ops.com/posts/azdo-angular-pipeline-caching/
+          - task: Cache@2
+            displayName: "Load npm cache"
+            inputs:
+              key: npm | $(Agent.OS) | $(pathToSrc)/$(npmModulesCacheKey) | $(npmModulesCacheVersion)
+              restoreKeys: |
+                  npm | $(Agent.OS)
+              path: $(pathToSrc)/node_modules
+              cacheHitVar: CACHE_HIT
+
+          # Install node modules
           - script: |
               npm install
             displayName: "npm install"
-            workingDirectory: "src"
+            workingDirectory: $(srcDirectory)
+
+          # Cache wasm files
+          - ${{ each functionFolder in split(variables.functionFolders,',') }}:
+            - task: Cache@2
+              displayName: "Load wasm cache for ${{ functionFolder }}"
+              inputs:
+                key: wasm | $(Agent.OS) | $(pathToExtensions)/${{ functionFolder }}/$(wasmCacheKey1) | $(pathToExtensions)/${{ functionFolder }}/$(wasmCacheKey2) | $(wasmCacheVersion)
+                restoreKeys: |
+                    wasm | $(Agent.OS)
+                path: $(pathToExtensions)/${{ functionFolder }}/target
+                cacheHitVar: CACHE_HIT
 
           # Deploy app
           # Note: adding "--source-control-url '$(Build.Repository.Uri)'" results in "Version couldn't be created." error due to "... is not a valid https URL for a git hosting service"
           - script: |
               npm run deploy -- --force --client-id '$(appClientId)' --version '$(Build.BuildNumber)' --message '$(Build.SourceVersionMessage)'
             displayName: "npm run deploy"
-            workingDirectory: "src"
+            workingDirectory: $(srcDirectory)
             env:
               # Token from the Partner Dashboard
               # Note: this is stored as a secret variable in the Azure DevOps pipeline
