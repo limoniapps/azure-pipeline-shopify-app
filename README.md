@@ -31,7 +31,8 @@ The pipeline assumes a folder structure similar to this:
         |   ├── src
         |   |   ├── .rs
         |   |   └── ...
-        |   ├── cargo.toml
+        |   ├── Cargo.toml (note uppercase C)
+        |   ├── cargo.lock (note lowercase c)
         |   └── shopify.function.extension.toml
         ├── extensions
         |   ├── assets
