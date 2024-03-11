@@ -1,11 +1,15 @@
 # azure-pipeline-shopify-app
-This repository simply contains a sample Azure DevOps pipeline that can be used to deploy a Shopify App.
+This repository provides a sample Azure DevOps pipeline (azure-pipelines.yml) that can be used as a starting point to deploy a Shopify App.
 
-It assumes that you:
-- define a variable (secret preferably) named cliPartnerToken on your Azure DevOps pipeline (https://learn.microsoft.com/en-us/azure/devops/pipelines/process/set-secret-variables)
-- use Rust to code your functions
+# Assumptions
+The pipeline assumes you've selected Rust to code your functions (if any).
 
-Further, the pipeline assumes a folder structure similar to this:
+# Steps to implement this
+- Add the azure-pipelines.yml file included in this repository to yours
+- Add a secret variable named cliPartnerToken to your Azure DevOps pipeline (https://learn.microsoft.com/en-us/azure/devops/pipelines/process/set-secret-variables)
+
+# Assumptions on folder structure
+The pipeline assumes a folder structure similar to this:
 ```bash
 ├── azure-pipelines.yml
 └── src
