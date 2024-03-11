@@ -4,7 +4,7 @@ This repository provides a sample Azure DevOps pipeline (azure-pipelines.yml) th
 # Assumptions
 The pipeline assumes you've selected Rust to code your functions (if any).
 
-# Steps to implement this
+# Steps
 - Add the azure-pipelines.yml file included in this repository to yours
 - Add a secret variable named cliPartnerToken to your Azure DevOps pipeline (https://learn.microsoft.com/en-us/azure/devops/pipelines/process/set-secret-variables)
 
