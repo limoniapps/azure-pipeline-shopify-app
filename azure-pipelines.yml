@@ -125,11 +125,13 @@ stages:
                 cacheHitVar: CACHE_HIT
 
           # Deploy app
-          # Note: adding "--source-control-url '$(Build.Repository.Uri)'" results in "Version couldn't be created." error due to "... is not a valid https URL for a git hosting service"
+          # Note 1: adding "--source-control-url '$(Build.Repository.Uri)'" results in "Version couldn't be created." error due to "... is not a valid https URL for a git hosting service"
+          # Note 2: adding retryCountOnTaskFailure to overcome occasional 'failed to create binary at home/vsts/.cargo/bin/cargo-wasi' error
           - script: |
               npm run deploy -- --force --client-id '$(appClientId)' --version '$(Build.BuildNumber)' --message '$(Build.SourceVersionMessage)'
             displayName: "npm run deploy"
             workingDirectory: $(srcDirectory)
+            retryCountOnTaskFailure: 3
             env:
               # Token from the Partner Dashboard
               # Note: this is stored as a secret variable in the Azure DevOps pipeline
